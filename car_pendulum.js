@@ -1,4 +1,32 @@
-"use strict ";
+// "use strict ";
+var maxFps = 60; //max FPS allowed
+var MS_PER_UPDATE = maxFps;
+function updateFrameRate(newFrameRate)
+{
+  maxFps = newFrameRate;
+  document.getElementById("FrameRateLabel").innerHTML=maxFps;
+}
+var frameCount = 0; //count total number of frames rendered
+
+var keysdown = {};
+
+window.addEventListener("keydown", function (event) {
+//   console.log(event.key);
+  if (event.defaultPrevented) {
+    return;
+  }
+  keysdown[event.key] = true;
+  event.preventDefault();
+}, true);
+
+window.addEventListener("keyup", function (event) {
+  if (event.defaultPrevented) {
+    return;
+  }
+  keysdown[event.key] = false;
+  event.preventDefault();
+}, true);
+
 window.onload = function() {
   var canvas = document.getElementById("canvas");
   var context = canvas.getContext("2d");
@@ -8,24 +36,88 @@ window.onload = function() {
   
   var car = new Car(canvas.height/4, shm);
   
-  requestAnimationFrame(mainLoop);
+  var fps = 0; //this is the fps that is displayed to the user
+  var framesThisSecond = 0; //this is a counter that counts how many frames we draw every second
+
+  //the following line sets a timer to go off every 1000ms (1s) which
+  //copies over the value of framesThisSecond to fps and then resets
+  //framesThisSecond to zero. Note this is an example of an anonymous function
+  //You can read more about anonymous functions here: https://en.wikibooks.org/wiki/JavaScript/Anonymous_functions
+  setInterval(function() { fps = framesThisSecond; framesThisSecond = 0; }, 1000);
+
+  var lastFrameTimeMs = 0; //last time the loop was run
+  var lag = 0.0;
   
-  function mainLoop() {
-    update();
-  draw();
-  requestAnimationFrame(mainLoop);
+  requestAnimationFrame(mainLoop_nd);
+  
+  function mainLoop_nd(timestamp) {
+    var delta = timestamp - lastFrameTimeMs;
+    lastFrameTimeMs = timestamp;
+    lag += delta;
+    
+    processInput();
+    
+    while (lag >= MS_PER_UPDATE) {
+      update();
+      lag -= MS_PER_UPDATE;
+    }
+    
+    draw();
+    requestAnimationFrame(mainLoop_nd);
+  }
+  
+  function processInput() 
+  {
+    if(keysdown.h) {
+      car.hold = true;
+  }
+    if(keysdown.r) {
+      car.hold = false;
+  }
+    if(keysdown.ArrowLeft) {
+      if (car.hold) {
+        --car.x;
+      }
+  }       
+  if (keysdown.ArrowRight) {
+      if (car.hold) {
+        ++car.x;
+      }
+  }
+    if(keysdown.ArrowUp) {
+      if (car.hold) {
+        car.pendulum.w = car.pendulum.w + 1/100;
+      }
+  }       
+  if (keysdown.ArrowDown) {
+      if (car.hold) {
+        car.pendulum.w = car.pendulum.w - 1/100;
+      }
+  }
   }
   
   function update() {
     updateCar();
     updatePendulum();
+    
+//     if (frameCount < 10) {
+//       console.log("car.center: " + car.center);
+//       console.log("car.v: " + car.v);
+//       console.log("car.pendulum.theta: " + car.pendulum.theta);
+//       console.log("car.pendulum.w: " + car.pendulum.w);
+//     }
   }
   
   function updateCar() {
     car.x = car.x + car.v;
-    car.center = car.center + car.v;
+    car.center = car.x + car.size[0]/2;
     car.a = shm * (canvas.width/2 - car.center);
-    car.v = car.v + car.a;
+    if(car.hold) {
+      car.v = 0;
+    }
+    else {
+      car.v = car.v + car.a;
+    }
   }
   
   function updatePendulum() {
@@ -36,10 +128,21 @@ window.onload = function() {
   
   function draw() {     
     //clear our drawing
-  context.clearRect(0, 0, canvas.width, canvas.height);
+//     console.log(car.pendulum.w);
+    context.clearRect(0, 0, canvas.width, canvas.height);
     
-    //draw the ball (notice the ball is always drawn at (0,0), what we change
-    //is the ball's coordinate system!)
+    //Draw a circle with fill and stroke
+    context.save();
+    context.translate(canvas.width/2, canvas.height/4);
+    context.beginPath();
+    context.arc(0, 25, 5, 0, 2 * Math.PI, false);
+    context.fillStyle = "red";
+    context.fill();
+    context.lineWidth = 1;
+    context.strokeStyle = "red";
+    context.stroke();
+    context.restore();
+    
     context.save();
     context.translate(car.x, car.y);
     context.beginPath();
@@ -53,6 +156,17 @@ window.onload = function() {
       drawPendulum();
       context.restore();
     context.restore();
+    
+    //draw the fps counter
+    context.fillText("FPS: " + fps, 10, 10);
+
+    //count a frame as drawn
+    ++framesThisSecond;
+
+    ++frameCount;
+//     if (frameCount < 10) {
+//       console.log("frame: " + frameCount);
+//     }
   }
   
   function drawPendulum() {
@@ -78,6 +192,7 @@ function Car(y, shm) {
   this.v = 0;
   this.a = shm * (canvas.width / 2 - this.center);
   this.pendulum = new Pendulum();
+  this.hold = false;
 }
 
 function Pendulum() {
