@@ -1,10 +1,9 @@
 // "use strict ";
-var maxFps = 60; //max FPS allowed
-var MS_PER_UPDATE = maxFps;
+var MS_PER_UPDATE = 60;
 function updateFrameRate(newFrameRate)
 {
-  maxFps = newFrameRate;
-  document.getElementById("FrameRateLabel").innerHTML=maxFps;
+  MS_PER_UPDATE = newFrameRate;
+  document.getElementById("FrameRateLabel").innerHTML=MS_PER_UPDATE;
 }
 var frameCount = 0; //count total number of frames rendered
 
@@ -48,9 +47,10 @@ window.onload = function() {
   var lastFrameTimeMs = 0; //last time the loop was run
   var lag = 0.0;
   
-  requestAnimationFrame(mainLoop_nd);
+//   requestAnimationFrame(mainLoop_d);
+  requestAnimationFrame(mainLoop_d_smooth);
   
-  function mainLoop_nd(timestamp) {
+  function mainLoop_d(timestamp) {
     var delta = timestamp - lastFrameTimeMs;
     lastFrameTimeMs = timestamp;
     lag += delta;
@@ -62,8 +62,24 @@ window.onload = function() {
       lag -= MS_PER_UPDATE;
     }
     
-    draw();
-    requestAnimationFrame(mainLoop_nd);
+    draw(lag);
+    requestAnimationFrame(mainLoop_d);
+  }
+  
+  function mainLoop_d_smooth(timestamp) {
+    var delta = timestamp - lastFrameTimeMs;
+    lastFrameTimeMs = timestamp;
+    lag += delta;
+    
+    processInput();
+    
+    while (lag >= MS_PER_UPDATE) {
+      update();
+      lag -= MS_PER_UPDATE;
+    }
+    
+    draw(lag);
+    requestAnimationFrame(mainLoop_d_smooth);
   }
   
   function processInput() 
@@ -100,17 +116,17 @@ window.onload = function() {
     updateCar();
     updatePendulum();
     
-//     if (frameCount < 10) {
-//       console.log("car.center: " + car.center);
-//       console.log("car.v: " + car.v);
-//       console.log("car.pendulum.theta: " + car.pendulum.theta);
-//       console.log("car.pendulum.w: " + car.pendulum.w);
-//     }
+    if (frameCount < 10) {
+      console.log("car.center: " + car.center);
+      console.log("car.v: " + car.v);
+      console.log("car.pendulum.theta: " + car.pendulum.theta);
+      console.log("car.pendulum.w: " + car.pendulum.w);
+    }
   }
   
   function updateCar() {
-    car.x = car.x + car.v;
-    car.center = car.x + car.size[0]/2;
+    car.center = car.center + car.v;
+    car.x = car.center - car.size[0]/2;
     car.a = shm * (canvas.width/2 - car.center);
     if(car.hold) {
       car.v = 0;
@@ -126,9 +142,8 @@ window.onload = function() {
     car.pendulum.w = car.pendulum.w + p_freq * eff_a;
   }
   
-  function draw() {     
+  function draw(lag) {     
     //clear our drawing
-//     console.log(car.pendulum.w);
     context.clearRect(0, 0, canvas.width, canvas.height);
     
     //Draw a circle with fill and stroke
@@ -143,8 +158,12 @@ window.onload = function() {
     context.stroke();
     context.restore();
     
+//     lag = 0;
+    x_ = car.x + car.v * (lag / MS_PER_UPDATE);
+    theta_ = car.pendulum.theta + car.pendulum.w * (lag / MS_PER_UPDATE);
+    
     context.save();
-    context.translate(car.x, car.y);
+    context.translate(x_, car.y);
     context.beginPath();
     context.rect(0,0,car.size[0],car.size[1]);
     context.fillStyle = "#800";
@@ -152,7 +171,7 @@ window.onload = function() {
     
       context.save();
       context.translate(car.size[0]/2, car.size[1]);
-      context.rotate(car.pendulum.theta);
+      context.rotate(theta_);
       drawPendulum();
       context.restore();
     context.restore();
@@ -164,9 +183,9 @@ window.onload = function() {
     ++framesThisSecond;
 
     ++frameCount;
-//     if (frameCount < 10) {
-//       console.log("frame: " + frameCount);
-//     }
+    if (frameCount < 10) {
+      console.log("frame: " + frameCount);
+    }
   }
   
   function drawPendulum() {
@@ -186,7 +205,7 @@ window.onload = function() {
 
 function Car(y, shm) {
   this.size = [100, 50];
-  this.center = Math.random() * canvas.width;
+  this.center = canvas.width * 3 / 4;
   this.x = this.center - this.size[0]/2;
   this.y = y;
   this.v = 0;
@@ -197,6 +216,8 @@ function Car(y, shm) {
 
 function Pendulum() {
   this.L = Math.random() * 50 + 50;
-  this.theta = Math.random() * Math.PI - Math.PI/2;
+  this.theta = Math.PI / 4;
   this.w = 0;
 }
+
+
