@@ -1,14 +1,17 @@
 <!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width">
-  <title>SHM Car with Pendulum</title>
-</head>
-<body>
-<canvas id="canvas" width="640"
-		height="640" style="border:1px solid #000;">
-		 Your browser does not support the canvas element.
-</body>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>SHM Car with Pendulum</title>
+  </head>
+  <body>
+    <canvas id="canvas" width="640"
+            height="640" style="border:1px solid #000;">
+      Your browser does not support the canvas element.
+    </canvas>
+    <input type="range"  min="1" max="60" value="60" onchange="updateFrameRate(this.value)"/>
+    <span id="FrameRateLabel">60</span>
+  </body>
 <script src="car_pendulum.js"></script>
 </html>
